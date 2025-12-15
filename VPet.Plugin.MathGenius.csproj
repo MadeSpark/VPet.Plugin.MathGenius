@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseWPF>true</UseWPF>
+    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+    <AssemblyName>VPet.Plugin.MathGenius</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="1140_MathGenius\**" />
+    <EmbeddedResource Remove="1140_MathGenius\**" />
+    <None Remove="1140_MathGenius\**" />
+    <Page Remove="1140_MathGenius\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LinePutScript" Version="1.11.9" />
+    <PackageReference Include="LinePutScript.Localization.WPF" Version="1.0.7" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="VPet-Simulator.Windows.Interface" Version="1.1.0.50" />
+  </ItemGroup>
+  <Target Name="CopyToPluginFolder" AfterTargets="Build">
+    <PropertyGroup>
+      <PluginDir>$(ProjectDir)1140_MathGenius\plugin\</PluginDir>
+      <PluginDll>$(PluginDir)$(AssemblyName).dll</PluginDll>
+      <PluginPdb>$(PluginDir)$(AssemblyName).pdb</PluginPdb>
+    </PropertyGroup>
+    <Message Text="Copying plugin to $(PluginDir)" Importance="high" />
+    <MakeDir Directories="$(PluginDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(PluginDll)" OverWriteReadOnlyFiles="true" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFiles="$(PluginPdb)" OverWriteReadOnlyFiles="true" SkipUnchangedFiles="true" Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" />
+  </Target>
+</Project>
