@@ -5,13 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ll="clr-namespace:LinePutScript.Localization.WPF;assembly=LinePutScript.Localization.WPF"
         mc:Ignorable="d"
-        Title="数学天才 设置" Height="160" Width="280" WindowStartupLocation="CenterScreen">
-    <Grid Margin="12">
-        <StackPanel>
-            <CheckBox x:Name="CbAutoType" Content="萝莉斯帮你写" Margin="0,0,0,12" />
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button x:Name="BtnClose" Content="关闭" Width="72" Click="BtnClose_Click"/>
-            </StackPanel>
-        </StackPanel>
-    </Grid>
+        Title="{ll:Str 数学天才 设置}" MinHeight="100" MinWidth="150" WindowStartupLocation="CenterScreen" 
+        Background="{DynamicResource DARKPrimary}" Foreground="{DynamicResource DARKPrimaryText}"
+        SizeToContent="WidthAndHeight">
+    <Window.Resources>
+        <ResourceDictionary Source="/VPet-Simulator.Windows.Interface;component/ResourceStyle.xaml" />
+    </Window.Resources>
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
+        <CheckBox x:Name="CbHook" Content="{ll:Str 启用}" Margin="0,0,0,12" Foreground="{DynamicResource DARKPrimaryText}"/>
+        <CheckBox x:Name="CbAutoType" Content="{ll:Str 萝莉斯帮你写}" Margin="0,0,0,12" Foreground="{DynamicResource DARKPrimaryText}"/>
+    </StackPanel>
 </Window>

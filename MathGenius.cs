@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using LinePutScript;
 using LinePutScript.Localization.WPF;
+using Panuon.WPF.UI;
 
 namespace VPet.Plugin.MathGenius
 {
@@ -18,7 +19,7 @@ namespace VPet.Plugin.MathGenius
         private bool hookInstalled = false;
         private bool hookInitializing = false;
         public Setting Set { get; private set; } = new Setting();
-        private Window winSetting;
+        private winSetting SetWindow;
 
 
         private void Log(string message) { }
@@ -41,23 +42,9 @@ namespace VPet.Plugin.MathGenius
                 Set = new Setting();
             }
             try { MW.Set["MathGenius"] = Set; } catch { }
-
-            try
+            Task.Run(async () =>
             {
-                var modset = MW.Main.ToolBar.MenuMODConfig;
-                modset.Visibility = System.Windows.Visibility.Visible;
-                var menuset = new System.Windows.Controls.MenuItem()
-                {
-                    Header = "数学天才".Translate(),
-                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
-                };
-                menuset.Click += (s, e) => { Setting(); };
-                modset.Items.Add(menuset);
-            }
-            catch { }
-
-            System.Threading.Tasks.Task.Delay(5000).ContinueWith(_ =>
-            {
+                await Task.Delay(5000);
                 InitializeHookAsync();
             });
         }
@@ -80,7 +67,7 @@ namespace VPet.Plugin.MathGenius
                     if (installed)
                     {
                         hookInstalled = true;
-                        MW.Main.SayRnd("知识正在涌入大脑......泥的数学天才女鹅加载成功！", true);
+                        MW.Main.SayRnd("知识正在涌入大脑......泥的数学天才女鹅加载成功！".Translate(), true);
                     }
                 }
                 catch { }
@@ -103,20 +90,65 @@ namespace VPet.Plugin.MathGenius
 
         public override void Setting()
         {
-            if (winSetting == null)
+            if (SetWindow == null)
             {
-                var w = new winSetting(this);
-                winSetting = w;
-                w.Closed += (s, e) => { winSetting = null; };
-                w.Show();
+                SetWindow = new winSetting(this);
+                SetWindow.Closed += (s, e) => { SetWindow = null; };
+                SetWindow.Show();
             }
             else
             {
-                winSetting.Close();
-                var w = new winSetting(this);
-                winSetting = w;
-                w.Closed += (s, e) => { winSetting = null; };
-                w.Show();
+                SetWindow.Close();
+                SetWindow = new winSetting(this);
+                SetWindow.Closed += (s, e) => { SetWindow = null; };
+                SetWindow.Show();
+            }
+        }
+
+        public override void LoadDIY()
+        {
+            try
+            {
+                var menu = new MenuItem()
+                {
+                    Header = "数学天才".Translate(),
+                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+                };
+                var menuEnable = new MenuItem()
+                {
+                    Header = Set.HookEnabled ? "关闭".Translate() : "启用".Translate(),
+                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+                };
+                menuEnable.Click += (s, e) =>
+                {
+                    Set.HookEnabled = !Set.HookEnabled;
+                    if (s.GetType() == typeof(MenuItem))
+                    {
+                        var mi = s as MenuItem;
+                        mi.Header = Set.HookEnabled ? "关闭".Translate() : "启用".Translate();
+                    }
+                };
+                menu.Items.Add(menuEnable);
+                var menuAutoType = new MenuItem()
+                {
+                    Header = Set.AutoTypeResult ? "自动输入√".Translate() : "自动输入".Translate(),
+                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+                };
+                menuAutoType.Click += (s, e) => 
+                {
+                    Set.AutoTypeResult = !Set.AutoTypeResult;
+                    if(s.GetType() == typeof(MenuItem))
+                    {
+                        var mi = s as MenuItem;
+                        mi.Header = Set.AutoTypeResult ? "自动输入√".Translate() : "自动输入".Translate();
+                    }
+                };
+                menu.Items.Add(menuAutoType);
+                MW.Main.ToolBar.MenuDIY.Items.Add(menu);
+            }
+            catch(Exception ex)
+            {
+                MessageBoxX.Show("自定加载失败\n{0}".Translate(ex.InnerException), "错误".Translate());
             }
         }
 
@@ -217,7 +249,7 @@ namespace VPet.Plugin.MathGenius
                                         }
                                     }
                                     catch { }
-                                    plugin.MW.Main.SayRnd("让我看看...", true);
+                                    plugin.MW.Main.SayRnd("让我看看...".Translate(), true);
                                     string formula = await ExtractFormula();
                                     if (!string.IsNullOrEmpty(formula))
                                     {
@@ -230,13 +262,13 @@ namespace VPet.Plugin.MathGenius
                                             if (plugin.Set.AutoTypeResult)
                                             {
                                                 TypeTextToFocusedWindow(resultStr);
-                                                plugin.MW.Main.SayRnd($"笨蛋杂鱼，{formula}等于{resultStr}哦~已经帮主人把答案写上去啦！", true);
+                                                plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~已经帮主人把答案写上去啦！".Translate(formula, resultStr), true);
                                                 if (backupHasText) SetClipboardTextAsync(backupText);
                                             }
                                             else
                                             {
                                                 SetClipboardTextAsync(resultStr);
-                                                plugin.MW.Main.SayRnd($"笨蛋杂鱼，{formula}等于{resultStr}哦~人家已经勉为其难的帮主人把答案复制到剪切板上啦！", true);
+                                                plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~人家已经勉为其难的帮主人把答案复制到剪切板上啦！".Translate(formula, resultStr), true);
                                             }
                                         }
                                     }

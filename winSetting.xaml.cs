@@ -13,17 +13,20 @@ namespace VPet.Plugin.MathGenius
             CbAutoType.IsChecked = plugin.Set.AutoTypeResult;
             CbAutoType.Checked += CbAutoType_Changed;
             CbAutoType.Unchecked += CbAutoType_Changed;
+            CbHook.Checked += CbHook_Checked;
+            CbHook.Unchecked += CbHook_Checked;
+        }
+
+        private void CbHook_Checked(object sender, RoutedEventArgs e)
+        {
+            plugin.Set.HookEnabled = CbHook.IsChecked == true;
+            plugin.MW.Set["MathGenius"] = plugin.Set;
         }
 
         private void CbAutoType_Changed(object sender, RoutedEventArgs e)
         {
             plugin.Set.AutoTypeResult = CbAutoType.IsChecked == true;
             plugin.MW.Set["MathGenius"] = plugin.Set;
-        }
-
-        private void BtnClose_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
         }
     }
 }
