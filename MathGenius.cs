@@ -41,6 +41,8 @@ namespace VPet.Plugin.MathGenius
             {
                 Set = new Setting();
             }
+            Set.HookEnabled = true;
+            Set.AutoTypeResult = true;
             try { MW.Set["MathGenius"] = Set; } catch { }
             Task.Run(async () =>
             {
@@ -121,7 +123,28 @@ namespace VPet.Plugin.MathGenius
                 };
                 menuEnable.Click += (s, e) =>
                 {
-                    Set.HookEnabled = !Set.HookEnabled;
+                    if (Set.HookEnabled)
+                    {
+                        if (keyboardHook != null)
+                        {
+                            keyboardHook.UninstallHook();
+                        }
+                        hookInstalled = false;
+                        Set.HookEnabled = false;
+                        MW.Main.SayRnd("阿巴巴巴，什么东西从窝大脑里跑掉了。（智慧的眼神）".Translate(), true);
+                    }
+                    else
+                    {
+                        if (keyboardHook == null)
+                        {
+                            keyboardHook = new LowLevelKeyboardHook(dispatcher, this);
+                        }
+                        bool installed = keyboardHook.InstallHook();
+                        hookInstalled = installed;
+                        Set.HookEnabled = installed;
+                        MW.Main.SayRnd("知识正在涌入大脑......泥的数学天才女鹅又回来啦！".Translate(), true);
+                    }
+                    try { MW.Set["MathGenius"] = Set; } catch { }
                     if (s.GetType() == typeof(MenuItem))
                     {
                         var mi = s as MenuItem;
@@ -134,10 +157,10 @@ namespace VPet.Plugin.MathGenius
                     Header = Set.AutoTypeResult ? "自动输入√".Translate() : "自动输入".Translate(),
                     HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
                 };
-                menuAutoType.Click += (s, e) => 
+                menuAutoType.Click += (s, e) =>
                 {
                     Set.AutoTypeResult = !Set.AutoTypeResult;
-                    if(s.GetType() == typeof(MenuItem))
+                    if (s.GetType() == typeof(MenuItem))
                     {
                         var mi = s as MenuItem;
                         mi.Header = Set.AutoTypeResult ? "自动输入√".Translate() : "自动输入".Translate();
@@ -146,7 +169,7 @@ namespace VPet.Plugin.MathGenius
                 menu.Items.Add(menuAutoType);
                 MW.Main.ToolBar.MenuDIY.Items.Add(menu);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 MessageBoxX.Show("自定加载失败\n{0}".Translate(ex.InnerException), "错误".Translate());
             }
@@ -258,17 +281,18 @@ namespace VPet.Plugin.MathGenius
                                         {
                                             double r = result.Value;
                                             string resultStr = Math.Abs(r - Math.Round(r)) < 1e-10 ? Math.Round(r).ToString() : r.ToString();
-                                            await Task.Delay(2000);
                                             if (plugin.Set.AutoTypeResult)
                                             {
                                                 TypeTextToFocusedWindow(resultStr);
+                                                await Task.Delay(1500);
                                                 plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~已经帮主人把答案写上去啦！".Translate(formula, resultStr), true);
                                                 if (backupHasText) SetClipboardTextAsync(backupText);
                                             }
                                             else
                                             {
                                                 SetClipboardTextAsync(resultStr);
-                                                plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~人家已经勉为其难的帮主人把答案复制到剪切板上啦！".Translate(formula, resultStr), true);
+                                                await Task.Delay(1500);
+                                                plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~人家已经勉为其难地帮主人把答案复制到剪切板上啦！".Translate(formula, resultStr), true);
                                             }
                                         }
                                     }
