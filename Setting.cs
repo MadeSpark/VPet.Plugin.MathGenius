@@ -17,5 +17,10 @@ namespace VPet.Plugin.MathGenius
             get => GetBool("AutoTypeResult");
             set => SetBool("AutoTypeResult", value);
         }
+        public bool HookEnabled
+        {
+            get => GetBool("HookEnabled");
+            set => SetBool("HookEnabled", value);
+        }
     }
 }

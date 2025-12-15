@@ -112,12 +112,32 @@ namespace VPet.Plugin.MathGenius
             {
                 var modDIY = MW.Main.ToolBar.MenuDIY;
                 modDIY.Visibility = System.Windows.Visibility.Visible;
-                var menuset = new System.Windows.Controls.MenuItem()
+                var menu = new System.Windows.Controls.MenuItem()
                 {
-                    Header = "自动输入".Translate(),
+                    Header = "数学天才".Translate(),
                     HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
                 };
-                menuset.Click += (s, e) => 
+                var menuEnable = new System.Windows.Controls.MenuItem()
+                {
+                    Header = Set.HookEnabled ? "关闭".Translate() : "启用".Translate(),
+                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+                };
+                menuEnable.Click += (s, e) =>
+                {
+                    Set.HookEnabled = !Set.AutoTypeResult;
+                    if (s.GetType() == typeof(MenuItem))
+                    {
+                        var mi = s as MenuItem;
+                        mi.Header = Set.AutoTypeResult ? "关闭".Translate() : "启用".Translate();
+                    }
+                };
+                menu.Items.Add(menuEnable);
+                var menuAutoType = new System.Windows.Controls.MenuItem()
+                {
+                    Header = Set.AutoTypeResult ? "自动输入√".Translate() : "自动输入".Translate(),
+                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+                };
+                menuAutoType.Click += (s, e) => 
                 {
                     Set.AutoTypeResult = !Set.AutoTypeResult;
                     if(s.GetType() == typeof(MenuItem))
@@ -126,7 +146,8 @@ namespace VPet.Plugin.MathGenius
                         mi.Header = Set.AutoTypeResult ? "自动输入√".Translate() : "自动输入".Translate();
                     }
                 };
-                modDIY.Items.Add(menuset);
+                menu.Items.Add(menuAutoType);
+                modDIY.Items.Add(menu);
             }
             catch { }
         }

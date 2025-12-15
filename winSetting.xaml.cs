@@ -19,7 +19,8 @@ namespace VPet.Plugin.MathGenius
 
         private void CbHook_Checked(object sender, RoutedEventArgs e)
         {
-            
+            plugin.Set.HookEnabled = CbHook.IsChecked == true;
+            plugin.MW.Set["MathGenius"] = plugin.Set;
         }
 
         private void CbAutoType_Changed(object sender, RoutedEventArgs e)
