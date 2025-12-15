@@ -18,7 +18,7 @@ namespace VPet.Plugin.MathGenius
         private bool hookInstalled = false;
         private bool hookInitializing = false;
         public Setting Set { get; private set; } = new Setting();
-        private Window winSetting;
+        private winSetting SetWindow;
 
 
         private void Log(string message) { }
@@ -89,20 +89,18 @@ namespace VPet.Plugin.MathGenius
 
         public override void Setting()
         {
-            if (winSetting == null)
+            if (SetWindow == null)
             {
-                var w = new winSetting(this);
-                winSetting = w;
-                w.Closed += (s, e) => { winSetting = null; };
-                w.Show();
+                SetWindow = new winSetting(this);
+                SetWindow.Closed += (s, e) => { SetWindow = null; };
+                SetWindow.Show();
             }
             else
             {
-                winSetting.Close();
-                var w = new winSetting(this);
-                winSetting = w;
-                w.Closed += (s, e) => { winSetting = null; };
-                w.Show();
+                SetWindow.Close();
+                SetWindow = new winSetting(this);
+                SetWindow.Closed += (s, e) => { SetWindow = null; };
+                SetWindow.Show();
             }
         }
 
@@ -111,13 +109,16 @@ namespace VPet.Plugin.MathGenius
             try
             {
                 var modDIY = MW.Main.ToolBar.MenuDIY;
-                modDIY.Visibility = System.Windows.Visibility.Visible;
-                var menu = new System.Windows.Controls.MenuItem()
+                if(modDIY.Visibility != Visibility.Visible)
+                {
+                    modDIY.Visibility = Visibility.Visible;
+                }
+                var menu = new MenuItem()
                 {
                     Header = "数学天才".Translate(),
                     HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
                 };
-                var menuEnable = new System.Windows.Controls.MenuItem()
+                var menuEnable = new MenuItem()
                 {
                     Header = Set.HookEnabled ? "关闭".Translate() : "启用".Translate(),
                     HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
@@ -132,7 +133,7 @@ namespace VPet.Plugin.MathGenius
                     }
                 };
                 menu.Items.Add(menuEnable);
-                var menuAutoType = new System.Windows.Controls.MenuItem()
+                var menuAutoType = new MenuItem()
                 {
                     Header = Set.AutoTypeResult ? "自动输入√".Translate() : "自动输入".Translate(),
                     HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
@@ -268,7 +269,7 @@ namespace VPet.Plugin.MathGenius
                                             else
                                             {
                                                 SetClipboardTextAsync(resultStr);
-                                                plugin.MW.Main.SayRnd($"笨蛋杂鱼，{0}等于{1}哦~人家已经勉为其难的帮主人把答案复制到剪切板上啦！".Translate(formula, resultStr), true);
+                                                plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~人家已经勉为其难的帮主人把答案复制到剪切板上啦！".Translate(formula, resultStr), true);
                                             }
                                         }
                                     }
