@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using LinePutScript;
 using LinePutScript.Localization.WPF;
+using Panuon.WPF.UI;
 
 namespace VPet.Plugin.MathGenius
 {
@@ -41,9 +42,9 @@ namespace VPet.Plugin.MathGenius
                 Set = new Setting();
             }
             try { MW.Set["MathGenius"] = Set; } catch { }
-
-            System.Threading.Tasks.Task.Delay(5000).ContinueWith(_ =>
+            Task.Run(async () =>
             {
+                await Task.Delay(5000);
                 InitializeHookAsync();
             });
         }
@@ -108,11 +109,6 @@ namespace VPet.Plugin.MathGenius
         {
             try
             {
-                var modDIY = MW.Main.ToolBar.MenuDIY;
-                if(modDIY.Visibility != Visibility.Visible)
-                {
-                    modDIY.Visibility = Visibility.Visible;
-                }
                 var menu = new MenuItem()
                 {
                     Header = "数学天才".Translate(),
@@ -125,11 +121,11 @@ namespace VPet.Plugin.MathGenius
                 };
                 menuEnable.Click += (s, e) =>
                 {
-                    Set.HookEnabled = !Set.AutoTypeResult;
+                    Set.HookEnabled = !Set.HookEnabled;
                     if (s.GetType() == typeof(MenuItem))
                     {
                         var mi = s as MenuItem;
-                        mi.Header = Set.AutoTypeResult ? "关闭".Translate() : "启用".Translate();
+                        mi.Header = Set.HookEnabled ? "关闭".Translate() : "启用".Translate();
                     }
                 };
                 menu.Items.Add(menuEnable);
@@ -148,9 +144,12 @@ namespace VPet.Plugin.MathGenius
                     }
                 };
                 menu.Items.Add(menuAutoType);
-                modDIY.Items.Add(menu);
+                MW.Main.ToolBar.MenuDIY.Items.Add(menu);
             }
-            catch { }
+            catch(Exception ex)
+            {
+                MessageBoxX.Show("自定加载失败\n{0}".Translate(ex.InnerException), "错误".Translate());
+            }
         }
 
 
