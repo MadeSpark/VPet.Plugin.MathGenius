@@ -325,7 +325,7 @@ namespace VPet.Plugin.MathGenius
                                             {
                                                 await Task.Delay(1000);
                                                 TypeTextToFocusedWindow(resultStr);
-                                                await Task.Delay(500);
+                                                await Task.Delay(1000);
                                                 plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~已经帮主人把答案写上去啦！".Translate(formula, resultStr), true);
                                                 if (backupHasText) SetClipboardTextAsync(backupText);
                                             }
@@ -380,7 +380,7 @@ namespace VPet.Plugin.MathGenius
                     string text = GetClipboardText();
                     text = text.Replace("（", "(").Replace("）", ")").Replace("＋", "+").Replace("－", "-").Replace("×", "*").Replace("÷", "/");
                     if (text == "=") continue;
-                    Regex regex = new Regex(@"[\d\(\)\+\-\*\/\^\%]+=$");
+                    Regex regex = new Regex(@"[\d\(\)\+\-\*\/\^\%\.]+=$");
                     var matches = regex.Matches(text);
                     if (matches.Count == 0) break;
                     if (!string.IsNullOrEmpty(prevFormula))
