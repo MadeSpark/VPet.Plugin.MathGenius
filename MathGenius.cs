@@ -43,6 +43,7 @@ namespace VPet.Plugin.MathGenius
             }
             Set.HookEnabled = true;
             Set.AutoTypeResult = true;
+            if (!Set.Contains("TypeByChar")) Set.TypeByChar = true;
             try { MW.Set["MathGenius"] = Set; } catch { }
             Task.Run(async () =>
             {
@@ -167,6 +168,38 @@ namespace VPet.Plugin.MathGenius
                     }
                 };
                 menu.Items.Add(menuAutoType);
+                var menuTypeMethod = new MenuItem()
+                {
+                    Header = "输入方式".Translate(),
+                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+                };
+                var menuTypeChar = new MenuItem()
+                {
+                    Header = Set.TypeByChar ? "逐字输入√".Translate() : "逐字输入".Translate(),
+                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+                };
+                var menuTypePaste = new MenuItem()
+                {
+                    Header = !Set.TypeByChar ? "复制粘贴√".Translate() : "复制粘贴".Translate(),
+                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+                };
+                menuTypeChar.Click += (s, e) =>
+                {
+                    Set.TypeByChar = true;
+                    menuTypeChar.Header = "逐字输入√".Translate();
+                    menuTypePaste.Header = "复制粘贴".Translate();
+                    try { MW.Set["MathGenius"] = Set; } catch { }
+                };
+                menuTypePaste.Click += (s, e) =>
+                {
+                    Set.TypeByChar = false;
+                    menuTypeChar.Header = "逐字输入".Translate();
+                    menuTypePaste.Header = "复制粘贴√".Translate();
+                    try { MW.Set["MathGenius"] = Set; } catch { }
+                };
+                menuTypeMethod.Items.Add(menuTypeChar);
+                menuTypeMethod.Items.Add(menuTypePaste);
+                menu.Items.Add(menuTypeMethod);
                 MW.Main.ToolBar.MenuDIY.Items.Add(menu);
             }
             catch (Exception ex)
@@ -185,7 +218,14 @@ namespace VPet.Plugin.MathGenius
         private const int WM_KEYUP = 0x0101;
         private const int WM_SYSKEYDOWN = 0x0104;
         private const int WM_SYSKEYUP = 0x0105;
+        private const int WM_PASTE = 0x0302;
+        private const int EM_REPLACESEL = 0x00C2;
         private const int VK_EQUAL = 0xBB;
+        private const int VK_OEM_MINUS = 0xBD;
+        private const int VK_OEM_PERIOD = 0xBE;
+        private const int VK_ADD = 0x6B;
+        private const int VK_SUBTRACT = 0x6D;
+        private const int VK_DECIMAL = 0x6E;
         private const int VK_SHIFT = 0x10;
         private const int VK_LSHIFT = 0xA0;
         private const int VK_RSHIFT = 0xA1;
@@ -283,8 +323,9 @@ namespace VPet.Plugin.MathGenius
                                             string resultStr = Math.Abs(r - Math.Round(r)) < 1e-10 ? Math.Round(r).ToString() : r.ToString();
                                             if (plugin.Set.AutoTypeResult)
                                             {
+                                                await Task.Delay(1000);
                                                 TypeTextToFocusedWindow(resultStr);
-                                                await Task.Delay(1500);
+                                                await Task.Delay(500);
                                                 plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~已经帮主人把答案写上去啦！".Translate(formula, resultStr), true);
                                                 if (backupHasText) SetClipboardTextAsync(backupText);
                                             }
@@ -390,6 +431,12 @@ namespace VPet.Plugin.MathGenius
         private static extern void keybd_event(byte bVk, byte bScan, int dwFlags, IntPtr dwExtraInfo);
         private void SimulateKeyDown(int vkCode) { keybd_event((byte)vkCode, 0, 0, IntPtr.Zero); }
         private void SimulateKeyUp(int vkCode) { keybd_event((byte)vkCode, 0, 2, IntPtr.Zero); }
+        private void SimulateKeyPress(int vkCode)
+        {
+            SimulateKeyDown(vkCode);
+            System.Threading.Thread.Sleep(5);
+            SimulateKeyUp(vkCode);
+        }
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
@@ -450,35 +497,83 @@ namespace VPet.Plugin.MathGenius
 
         private void TypeTextToFocusedWindow(string text)
         {
-            var done = new System.Threading.ManualResetEvent(false);
-            try
+            if (string.IsNullOrEmpty(text)) return;
+            if (plugin.Set.TypeByChar)
             {
-                var t = new System.Threading.Thread(() =>
+                for (int i = 0; i < text.Length; i++)
                 {
-                    for (int i = 0; i < 5; i++)
+                    char ch = text[i];
+                    if (ch >= '0' && ch <= '9')
+                    {
+                        int vk = 0x30 + (ch - '0');
+                        SimulateKeyPress(vk);
+                        System.Threading.Thread.Sleep(10);
+                        continue;
+                    }
+                    if (ch == '.')
+                    {
+                        try { SimulateKeyPress(VK_OEM_PERIOD); }
+                        catch { SimulateKeyPress(VK_DECIMAL); }
+                        System.Threading.Thread.Sleep(10);
+                        continue;
+                    }
+                    if (ch == '-')
+                    {
+                        try { SimulateKeyPress(VK_OEM_MINUS); }
+                        catch { SimulateKeyPress(VK_SUBTRACT); }
+                        System.Threading.Thread.Sleep(10);
+                        continue;
+                    }
+                    if (ch == '+')
                     {
                         try
                         {
-                            System.Windows.Clipboard.SetText(text);
-                            break;
+                            SimulateKeyDown(VK_SHIFT);
+                            System.Threading.Thread.Sleep(5);
+                            SimulateKeyPress(VK_EQUAL);
+                            System.Threading.Thread.Sleep(5);
                         }
-                        catch
+                        finally
                         {
-                            System.Threading.Thread.Sleep(100);
+                            SimulateKeyUp(VK_SHIFT);
                         }
+                        System.Threading.Thread.Sleep(10);
+                        continue;
                     }
-                    done.Set();
-                });
-                t.SetApartmentState(System.Threading.ApartmentState.STA);
-                t.IsBackground = true;
-                t.Start();
+                }
             }
-            catch
+            else
             {
-                done.Set();
+                var done = new System.Threading.ManualResetEvent(false);
+                try
+                {
+                    var t = new System.Threading.Thread(() =>
+                    {
+                        for (int i = 0; i < 5; i++)
+                        {
+                            try
+                            {
+                                System.Windows.Clipboard.SetText(text);
+                                break;
+                            }
+                            catch
+                            {
+                                System.Threading.Thread.Sleep(100);
+                            }
+                        }
+                        done.Set();
+                    });
+                    t.SetApartmentState(System.Threading.ApartmentState.STA);
+                    t.IsBackground = true;
+                    t.Start();
+                }
+                catch
+                {
+                    done.Set();
+                }
+                done.WaitOne(500);
+                SimulateKeyCombo(0x56, 0xA2);
             }
-            done.WaitOne(500);
-            SimulateKeyCombo(0x56, 0xA2);
         }
 
         private void SimulateKeyCombo(int key1, int key2)
