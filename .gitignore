@@ -1,0 +1,12 @@
+# Ignore build outputs
+bin/
+obj/
+
+# Also ignore nested build output folders
+**/bin/
+**/obj/
+
+# User-specific files
+*.user
+*.suo
+
