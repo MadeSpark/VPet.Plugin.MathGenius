@@ -21,6 +21,7 @@ namespace VPet.Plugin.MathGenius
         public Setting Set { get; private set; } = new Setting();
         private winSetting SetWindow;
 
+        private bool isInitialized = false;
 
         private void Log(string message) { }
 
@@ -44,12 +45,19 @@ namespace VPet.Plugin.MathGenius
             Set.HookEnabled = true;
             Set.AutoTypeResult = true;
             if (!Set.Contains("TypeByChar")) Set.TypeByChar = true;
+            if(!Set.Contains("StrictMode")) Set.StrictMode = true;
             try { MW.Set["MathGenius"] = Set; } catch { }
+            
+        }
+
+        public override void GameLoaded()
+        {
             Task.Run(async () =>
             {
                 await Task.Delay(5000);
                 InitializeHookAsync();
             });
+            isInitialized = true;
         }
 
         private void InitializeHookAsync()
@@ -70,7 +78,8 @@ namespace VPet.Plugin.MathGenius
                     if (installed)
                     {
                         hookInstalled = true;
-                        MW.Main.SayRnd("知识正在涌入大脑......泥的数学天才女鹅加载成功！".Translate(), true);
+                        if(isInitialized)
+                            MW.Main.SayRnd("知识正在涌入大脑......泥的数学天才女鹅加载成功！".Translate(), true);
                     }
                 }
                 catch { }
@@ -248,6 +257,8 @@ namespace VPet.Plugin.MathGenius
         private MathGeniusPlugin plugin;
         private int keyPressCount = 0;
         private bool hasDigitTyped = false;
+        private bool hasOperatorTyped = false;
+        private bool StrictMode { get => plugin.Set.StrictMode; }
 
         private void Log(string message) { }
 
@@ -299,6 +310,12 @@ namespace VPet.Plugin.MathGenius
                         if (!shiftDown && hasDigitTyped)
                         {
                             hasDigitTyped = false;
+                            if (StrictMode && !hasOperatorTyped)
+                            {
+                                hasOperatorTyped = false;
+                                return CallNextHookEx(hookHandle, nCode, wParam, lParam);
+                            }
+                            hasOperatorTyped = false;
                             isProcessing = true;
                             Task.Run(async () =>
                             {
@@ -345,6 +362,12 @@ namespace VPet.Plugin.MathGenius
                                 }
                             });
                         }
+                        else if (!shiftDown)
+                        {
+                            hasDigitTyped = false;
+                            hasOperatorTyped = false;
+                        }
+                        else if (vkCode == VK_EQUAL) hasOperatorTyped = true;
                     }
                     else if (wMsg == WM_KEYDOWN || wMsg == WM_SYSKEYDOWN)
                     {
@@ -364,13 +387,33 @@ namespace VPet.Plugin.MathGenius
                                 // plugin.MW.Main.SayRnd("hasDigitTyped：false".Translate(), true);
                                 hasDigitTyped = false;
                             }
+                            if(IsOperatorKey(vkCode))
+                            {
+                                hasOperatorTyped = true;
+                            }
                         }
+                    }
+                    else if((vkCode == VK_SHIFT || vkCode == VK_LSHIFT || vkCode == VK_RSHIFT) && (wMsg == WM_KEYUP || wMsg == WM_SYSKEYUP))
+                    {
+                        if (IsEqualKeyHeld())
+                            hasOperatorTyped = true;
                     }
                 }
             }
             catch { }
 
             return CallNextHookEx(hookHandle, nCode, wParam, lParam);
+        }
+
+        /// <summary>判断是否是运算符键</summary>
+        private bool IsOperatorKey(int vkCode)
+        {
+            if (vkCode == VK_ADD) return true; // + 主键盘&小键盘
+            if (vkCode == VK_OEM_MINUS || vkCode == VK_SUBTRACT) return true; // - 主键盘&小键盘
+            if (vkCode == 0xBA || vkCode == 0x6A) return true; // * 主键盘&小键盘
+            if (vkCode == 0xBF || vkCode == 0x6F) return true; // / 主键盘&小键盘
+            if (vkCode == VK_OEM_PERIOD || vkCode == VK_DECIMAL) return true; // . 主键盘&小键盘
+            return false;
         }
 
         private async Task<string> ExtractFormula()
@@ -442,6 +485,13 @@ namespace VPet.Plugin.MathGenius
             return ((GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0)
                 || ((GetAsyncKeyState(VK_LSHIFT) & 0x8000) != 0)
                 || ((GetAsyncKeyState(VK_RSHIFT) & 0x8000) != 0);
+        }
+
+
+        private bool IsEqualKeyHeld()
+        {
+            // VK_EQUAL = 0xBB
+            return (GetAsyncKeyState(VK_EQUAL) & 0x8000) != 0;
         }
 
         [DllImport("user32.dll")]

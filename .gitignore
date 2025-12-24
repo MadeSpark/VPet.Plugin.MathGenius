@@ -1,12 +1,91 @@
-# Ignore build outputs
+############################################
+# .NET / Visual Studio / Rider / VS Code
+# Clean and comprehensive ignore rules
+############################################
+
+# Build outputs
 bin/
 obj/
-
-# Also ignore nested build output folders
 **/bin/
 **/obj/
+[Bb]in/
+[Oo]bj/
+**/publish/
 
-# User-specific files
+# Configuration & caches
+.vs/
+.idea/
+/.idea
+
+# User-specific IDE files
 *.user
 *.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+*.sln.iml
+.codebuddy
 
+# NuGet packages & props/targets
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+# VS Code workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Logs
+[Ll]og/
+[Ll]ogs/
+*.log
+
+# Temp files
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+
+# Common debug/release variants
+[Dd]ebug*/
+[Rr]elease*/
+*debug*
+
+# WPF generated files
+*.g.cs
+*.g.i.cs
+*.baml
+
+# Symbols
+*.pdb
+
+# Test results & coverage
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# ReSharper / NCrunch
+_ReSharper*/
+*.ReSharper
+*.DotSettings.user
+_NCrunch_*/
+*.ncrunch*
+
+# StyleCop
+StyleCopReport.xml
+
+# Other IDE markers
+.kiro
+.ide
+
+# OS-specific noise
+Thumbs.db
+.DS_Store
+Desktop.ini

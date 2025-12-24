@@ -27,5 +27,10 @@ namespace VPet.Plugin.MathGenius
             get => GetBool("TypeByChar");
             set => SetBool("TypeByChar", value);
         }
+        public bool StrictMode
+        {
+            get => GetBool("StrictMode");
+            set => SetBool("StrictMode", value);
+        }
     }
 }
