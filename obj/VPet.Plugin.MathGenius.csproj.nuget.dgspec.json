@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\DevelopmentFolder\\C#\\VPet.Plugin.Demo\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj": {}
+    "D:\\DevelopmentFolder\\C#\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj": {}
   },
   "projects": {
-    "D:\\DevelopmentFolder\\C#\\VPet.Plugin.Demo\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj": {
+    "D:\\DevelopmentFolder\\C#\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\DevelopmentFolder\\C#\\VPet.Plugin.Demo\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj",
+        "projectUniqueName": "D:\\DevelopmentFolder\\C#\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj",
         "projectName": "VPet.Plugin.MathGenius",
-        "projectPath": "D:\\DevelopmentFolder\\C#\\VPet.Plugin.Demo\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj",
+        "projectPath": "D:\\DevelopmentFolder\\C#\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj",
         "packagesPath": "C:\\Users\\MadeSpark\\.nuget\\packages\\",
-        "outputPath": "D:\\DevelopmentFolder\\C#\\VPet.Plugin.Demo\\VPet.Plugin.MathGenius\\obj\\",
+        "outputPath": "D:\\DevelopmentFolder\\C#\\VPet.Plugin.MathGenius\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\MadeSpark\\AppData\\Roaming\\NuGet\\NuGet.Config"

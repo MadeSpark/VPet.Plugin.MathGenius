@@ -15,6 +15,7 @@ namespace VPet.Plugin.MathGenius
     public class MathGeniusPlugin : MainPlugin
     {
         private LowLevelKeyboardHook keyboardHook;
+        private KeyboardHookDependencyBridge keyboardBridge;
         private Dispatcher dispatcher;
         private bool hookInstalled = false;
         private bool hookInitializing = false;
@@ -41,7 +42,7 @@ namespace VPet.Plugin.MathGenius
             {
                 Set = new Setting();
             }
-            Set.HookEnabled = true;
+            if (!Set.Contains("HookEnabled")) Set.HookEnabled = true;
             Set.AutoTypeResult = true;
             if (!Set.Contains("TypeByChar")) Set.TypeByChar = true;
             try { MW.Set["MathGenius"] = Set; } catch { }
@@ -54,6 +55,9 @@ namespace VPet.Plugin.MathGenius
 
         private void InitializeHookAsync()
         {
+            if (!Set.HookEnabled)
+                return;
+
             if (hookInitializing || hookInstalled)
                 return;
 
@@ -66,11 +70,29 @@ namespace VPet.Plugin.MathGenius
                     {
                         keyboardHook = new LowLevelKeyboardHook(dispatcher, this);
                     }
-                    bool installed = keyboardHook.InstallHook();
-                    if (installed)
+                    if (keyboardBridge == null)
+                    {
+                        keyboardBridge = new KeyboardHookDependencyBridge(keyboardHook);
+                    }
+                    bool subscribed = keyboardBridge.TrySubscribe();
+                    if (subscribed)
                     {
                         hookInstalled = true;
-                        MW.Main.SayRnd("知识正在涌入大脑......泥的数学天才女鹅加载成功！".Translate(), true);
+                    }
+                    else
+                    {
+                        hookInstalled = false;
+                        Set.HookEnabled = false;
+                        try { MW.Set["MathGenius"] = Set; } catch { }
+                        try
+                        {
+                            var text = "数学天才：功能启用失败，请检查是否已安装并启用依赖。";
+                            if (!string.IsNullOrWhiteSpace(text))
+                                MW.Main.LabelDisplayShow(text, 5000);
+                        }
+                        catch
+                        {
+                        }
                     }
                 }
                 catch { }
@@ -83,10 +105,7 @@ namespace VPet.Plugin.MathGenius
 
         ~MathGeniusPlugin()
         {
-            if (keyboardHook != null)
-            {
-                keyboardHook.UninstallHook();
-            }
+            try { keyboardBridge?.Unsubscribe(); } catch { }
         }
 
         public override string PluginName => "MathGenius";
@@ -126,10 +145,7 @@ namespace VPet.Plugin.MathGenius
                 {
                     if (Set.HookEnabled)
                     {
-                        if (keyboardHook != null)
-                        {
-                            keyboardHook.UninstallHook();
-                        }
+                        try { keyboardBridge?.Unsubscribe(); } catch { }
                         hookInstalled = false;
                         Set.HookEnabled = false;
                         MW.Main.SayRnd("阿巴巴巴，什么东西从窝大脑里跑掉了。（智慧的眼神）".Translate(), true);
@@ -140,10 +156,21 @@ namespace VPet.Plugin.MathGenius
                         {
                             keyboardHook = new LowLevelKeyboardHook(dispatcher, this);
                         }
-                        bool installed = keyboardHook.InstallHook();
-                        hookInstalled = installed;
-                        Set.HookEnabled = installed;
-                        MW.Main.SayRnd("知识正在涌入大脑......泥的数学天才女鹅又回来啦！".Translate(), true);
+                        if (keyboardBridge == null)
+                        {
+                            keyboardBridge = new KeyboardHookDependencyBridge(keyboardHook);
+                        }
+                        bool subscribed = keyboardBridge.TrySubscribe();
+                        hookInstalled = subscribed;
+                        Set.HookEnabled = subscribed;
+                        if (subscribed)
+                        {
+                            MW.Main.SayRnd("知识正在涌入大脑......泥的数学天才女鹅又回来啦！".Translate(), true);
+                        }
+                        else
+                        {
+                            MessageBoxX.Show("功能无法启用，请检查是否已安装并启用依赖", "提示");
+                        }
                     }
                     try { MW.Set["MathGenius"] = Set; } catch { }
                     if (s.GetType() == typeof(MenuItem))
@@ -204,7 +231,16 @@ namespace VPet.Plugin.MathGenius
             }
             catch (Exception ex)
             {
-                MessageBoxX.Show("自定加载失败\n{0}".Translate(ex.InnerException), "错误".Translate());
+                try
+                {
+                    var detail = ex.InnerException?.Message ?? ex.Message;
+                    var text = string.IsNullOrWhiteSpace(detail) ? "自定加载失败" : $"自定加载失败\n{detail}";
+                    if (!string.IsNullOrWhiteSpace(text))
+                        MW.Main.LabelDisplayShow(text, 5000);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -292,85 +328,89 @@ namespace VPet.Plugin.MathGenius
                 {
                     int vkCode = Marshal.ReadInt32(lParam);
                     int wMsg = (int)wParam;
-
-                    if (vkCode == VK_EQUAL && (wMsg == WM_KEYUP || wMsg == WM_SYSKEYUP))
-                    {
-                        bool shiftDown = IsShiftDown();
-                        if (!shiftDown && hasDigitTyped)
-                        {
-                            hasDigitTyped = false;
-                            isProcessing = true;
-                            Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    _ = dispatcher.BeginInvoke(new Action(() =>
-                                    {
-                                        plugin.MW.Main.SayRnd("让我看看...".Translate(), false);
-                                    }), DispatcherPriority.Background);
-                                    string formula = await ExtractFormula();
-                                    if (!string.IsNullOrEmpty(formula))
-                                    {
-                                        var result = EvaluateExpression(formula);
-                                        if (result.HasValue)
-                                        {
-                                            double r = result.Value;
-                                            string resultStr = Math.Abs(r - Math.Round(r)) < 1e-10 ? Math.Round(r).ToString() : r.ToString();
-                                            if (plugin.Set.AutoTypeResult)
-                                            {
-                                                // await Task.Delay(1000);
-                                                TypeTextToFocusedWindow(resultStr);
-                                                // await Task.Delay(500);
-                                                _ = dispatcher.BeginInvoke(new Action(() =>
-                                                {
-                                                    plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~已经帮主人把答案写上去啦！".Translate(formula, resultStr), false);
-                                                }), DispatcherPriority.Background);
-                                            }
-                                            else
-                                            {
-                                                SetClipboardTextAsync(resultStr);
-                                                // await Task.Delay(1500);
-                                                _ = dispatcher.BeginInvoke(new Action(() =>
-                                                {
-                                                    plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~人家已经勉为其难地帮主人把答案复制到剪切板上啦！".Translate(formula, resultStr), false);
-                                                }), DispatcherPriority.Background);
-                                            }
-                                        }
-                                    }
-                                }
-                                catch { }
-                                finally
-                                {
-                                    isProcessing = false;
-                                }
-                            });
-                        }
-                    }
-                    else if (wMsg == WM_KEYDOWN || wMsg == WM_SYSKEYDOWN)
-                    {
-                        if (vkCode == VK_EQUAL)
-                        {
-                            // plugin.MW.Main.SayRnd("等号键被按下".Translate(), true);
-                        }
-                        else
-                        {
-                            if ((vkCode >= 0x30 && vkCode <= 0x39) || (vkCode >= 0x60 && vkCode <= 0x69))
-                            {
-                                // plugin.MW.Main.SayRnd("hasDigitTyped：true".Translate(), true);
-                                hasDigitTyped = true;
-                            }
-                            else
-                            {
-                                // plugin.MW.Main.SayRnd("hasDigitTyped：false".Translate(), true);
-                                hasDigitTyped = false;
-                            }
-                        }
-                    }
+                    HandleVkMessage(vkCode, wMsg);
                 }
             }
             catch { }
 
             return CallNextHookEx(hookHandle, nCode, wParam, lParam);
+        }
+
+        public void HandleVkMessage(int vkCode, int wMsg)
+        {
+            try
+            {
+                if (vkCode == VK_EQUAL && (wMsg == WM_KEYUP || wMsg == WM_SYSKEYUP))
+                {
+                    bool shiftDown = IsShiftDown();
+                    if (!shiftDown && hasDigitTyped)
+                    {
+                        hasDigitTyped = false;
+                        isProcessing = true;
+                        Task.Run(async () =>
+                        {
+                            try
+                            {
+                                _ = dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    plugin.MW.Main.SayRnd("让我看看...".Translate(), false);
+                                }), DispatcherPriority.Background);
+                                string formula = await ExtractFormula();
+                                if (!string.IsNullOrEmpty(formula))
+                                {
+                                    var result = EvaluateExpression(formula);
+                                    if (result.HasValue)
+                                    {
+                                        double r = result.Value;
+                                        string resultStr = Math.Abs(r - Math.Round(r)) < 1e-10 ? Math.Round(r).ToString() : r.ToString();
+                                        if (plugin.Set.AutoTypeResult)
+                                        {
+                                            TypeTextToFocusedWindow(resultStr);
+                                            _ = dispatcher.BeginInvoke(new Action(() =>
+                                            {
+                                                plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~已经帮主人把答案写上去啦！".Translate(formula, resultStr), false);
+                                            }), DispatcherPriority.Background);
+                                        }
+                                        else
+                                        {
+                                            SetClipboardTextAsync(resultStr);
+                                            _ = dispatcher.BeginInvoke(new Action(() =>
+                                            {
+                                                plugin.MW.Main.SayRnd("笨蛋杂鱼，{0}等于{1}哦~人家已经勉为其难地帮主人把答案复制到剪切板上啦！".Translate(formula, resultStr), false);
+                                            }), DispatcherPriority.Background);
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+                            finally
+                            {
+                                isProcessing = false;
+                            }
+                        });
+                    }
+                }
+                else if (wMsg == WM_KEYDOWN || wMsg == WM_SYSKEYDOWN)
+                {
+                    if (vkCode == VK_EQUAL)
+                    {
+                    }
+                    else
+                    {
+                        if ((vkCode >= 0x30 && vkCode <= 0x39) || (vkCode >= 0x60 && vkCode <= 0x69))
+                        {
+                            hasDigitTyped = true;
+                        }
+                        else
+                        {
+                            hasDigitTyped = false;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
         }
 
         private async Task<string> ExtractFormula()

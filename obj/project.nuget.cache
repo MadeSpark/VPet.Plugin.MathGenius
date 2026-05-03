@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "XgBH4gIX/WU=",
+  "dgSpecHash": "zWQkDwnRbqU=",
   "success": true,
-  "projectFilePath": "D:\\DevelopmentFolder\\C#\\VPet.Plugin.Demo\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj",
+  "projectFilePath": "D:\\DevelopmentFolder\\C#\\VPet.Plugin.MathGenius\\VPet.Plugin.MathGenius.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\MadeSpark\\.nuget\\packages\\lineputscript\\1.11.9\\lineputscript.1.11.9.nupkg.sha512",
     "C:\\Users\\MadeSpark\\.nuget\\packages\\lineputscript.localization.wpf\\1.0.7\\lineputscript.localization.wpf.1.0.7.nupkg.sha512",

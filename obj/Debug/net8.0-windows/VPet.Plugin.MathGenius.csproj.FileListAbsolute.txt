@@ -13,3 +13,14 @@ d:\DevelopmentFolder\C#\VPet.Plugin.Demo\VPet.Plugin.MathGenius\obj\Debug\net8.0
 d:\DevelopmentFolder\C#\VPet.Plugin.Demo\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\refint\VPet.Plugin.MathGenius.dll
 d:\DevelopmentFolder\C#\VPet.Plugin.Demo\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\VPet.Plugin.MathGenius.pdb
 d:\DevelopmentFolder\C#\VPet.Plugin.Demo\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\ref\VPet.Plugin.MathGenius.dll
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\VPet.Plugin.MathGenius.csproj.AssemblyReference.cache
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\winSetting.baml
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\winSetting.g.cs
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\VPet.Plugin.MathGenius_MarkupCompile.cache
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\VPet.Plugin.MathGenius.g.resources
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\VPet.Plugin.MathGenius.GeneratedMSBuildEditorConfig.editorconfig
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\VPet.Plugin.MathGenius.csproj.CoreCompileInputs.cache
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\VPet.Plugin.MathGenius.sourcelink.json
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\VPet.Plugin.MathGenius.dll
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\refint\VPet.Plugin.MathGenius.dll
+D:\DevelopmentFolder\C#\VPet.Plugin.MathGenius\obj\Debug\net8.0-windows\VPet.Plugin.MathGenius.pdb

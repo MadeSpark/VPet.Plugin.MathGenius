@@ -8,10 +8,10 @@
     <AssemblyName>VPet.Plugin.MathGenius</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="1140_MathGenius\**" />
-    <EmbeddedResource Remove="1140_MathGenius\**" />
-    <None Remove="1140_MathGenius\**" />
-    <Page Remove="1140_MathGenius\**" />
+    <Compile Remove="1150_MathGenius\**" />
+    <EmbeddedResource Remove="1150_MathGenius\**" />
+    <None Remove="1150_MathGenius\**" />
+    <Page Remove="1150_MathGenius\**" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="LinePutScript" Version="1.11.9" />
@@ -21,7 +21,7 @@
   </ItemGroup>
   <Target Name="CopyToPluginFolder" AfterTargets="Build">
     <PropertyGroup>
-      <PluginDir>$(ProjectDir)1140_MathGenius\plugin\</PluginDir>
+      <PluginDir>$(ProjectDir)1150_MathGenius\plugin\</PluginDir>
       <PluginDll>$(PluginDir)$(AssemblyName).dll</PluginDll>
       <PluginPdb>$(PluginDir)$(AssemblyName).pdb</PluginPdb>
     </PropertyGroup>
