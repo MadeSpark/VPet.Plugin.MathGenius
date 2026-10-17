@@ -340,6 +340,9 @@ namespace VPet.Plugin.MathGenius
         {
             try
             {
+                if (isProcessing)
+                    return;
+
                 if (vkCode == VK_EQUAL && (wMsg == WM_KEYUP || wMsg == WM_SYSKEYUP))
                 {
                     bool shiftDown = IsShiftDown();
@@ -415,64 +418,168 @@ namespace VPet.Plugin.MathGenius
 
         private async Task<string> ExtractFormula()
         {
-            string prevFormula = null;
+            string previousFormula = null;
             string finalFormula = null;
-            for (int i = 1; i <= 100 && finalFormula == null; i++)
+            bool selectionStarted = false;
+            bool shiftKeyDown = false;
+            bool leftKeyDown = false;
+            int consecutiveFailures = 0;
+            const int maxIterations = 100;
+            const int maxConsecutiveFailures = 5;
+            const int holdStepMilliseconds = 50;
+            const int initialHoldMultiplier = 1;
+            const int holdMultiplierIncrement = 1;
+            const int maxHoldMultiplier = 10;
+            const int leftKeyDownMilliseconds = 5;
+            const int leftKeyGapMilliseconds = 10;
+
+            try
             {
-                try
+                for (int i = 0; i < maxIterations && finalFormula == null; i++)
                 {
-                    SimulateKeyDown(0xA0);
-                    await Task.Delay(10);
-                    for (int j = 0; j < i * 10; j++)
+                    try
                     {
-                        SendKeyToFocusedWindow(0x25);
+                        SimulateKeyDown(VK_LSHIFT);
+                        shiftKeyDown = true;
                         await Task.Delay(10);
+
+                        // keybd_event does not reliably synthesize typematic repeat from one
+                        // KeyDown, so keep Shift held and emit explicit left-key press pairs.
+                        // The hold window is 50ms x multiplier, where the multiplier starts at
+                        // 1 and grows by 1 per iteration, capped at 10 (i.e. 500ms).
+                        int holdMultiplier = initialHoldMultiplier + i * holdMultiplierIncrement;
+                        if (holdMultiplier > maxHoldMultiplier)
+                        {
+                            holdMultiplier = maxHoldMultiplier;
+                        }
+                        int holdMilliseconds = holdStepMilliseconds * holdMultiplier;
+                        int repeatCount = holdMilliseconds / (leftKeyDownMilliseconds + leftKeyGapMilliseconds);
+                        if (repeatCount < 1)
+                        {
+                            repeatCount = 1;
+                        }
+                        for (int repeat = 0; repeat < repeatCount; repeat++)
+                        {
+                            SimulateKeyDown(0x25);
+                            leftKeyDown = true;
+                            selectionStarted = true;
+                            await Task.Delay(leftKeyDownMilliseconds);
+                            SimulateKeyUp(0x25);
+                            leftKeyDown = false;
+
+                            if (repeat + 1 < repeatCount)
+                            {
+                                await Task.Delay(leftKeyGapMilliseconds);
+                            }
+                        }
+
+                        int elapsedMilliseconds = (repeatCount * leftKeyDownMilliseconds)
+                            + ((repeatCount - 1) * leftKeyGapMilliseconds);
+                        int remainingMilliseconds = holdMilliseconds - elapsedMilliseconds;
+                        if (remainingMilliseconds > 0)
+                        {
+                            await Task.Delay(remainingMilliseconds);
+                        }
                     }
-                    SimulateKeyUp(0xA0);
+                    finally
+                    {
+                        if (leftKeyDown)
+                        {
+                            SimulateKeyUp(0x25);
+                            leftKeyDown = false;
+                        }
+                        if (shiftKeyDown)
+                        {
+                            SimulateKeyUp(VK_LSHIFT);
+                            shiftKeyDown = false;
+                        }
+                    }
+
                     await Task.Delay(10);
                     SimulateKeyCombo(0x43, 0xA2);
                     await Task.Delay(100);
-                    SendKeyToFocusedWindow(0x27);
-                    await Task.Delay(10);
+
                     string text = GetClipboardText();
                     text = text.Replace("（", "(").Replace("）", ")").Replace("＋", "+").Replace("－", "-").Replace("×", "*").Replace("÷", "/");
-                    if (text == "=") continue;
-                    Regex regex = new Regex(@"[\d\(\)\+\-\*\/\^\%\.]+=$");
-                    var matches = regex.Matches(text);
-                    if (matches.Count == 0) break;
-                    if (!string.IsNullOrEmpty(prevFormula))
+
+                    string candidate = null;
+                    if (text != "=")
                     {
+                        Regex regex = new Regex(@"[\d\(\)\+\-\*\/\^\%\.]+=$");
+                        var matches = regex.Matches(text);
+                        if (matches.Count > 0)
+                        {
+                            candidate = matches[matches.Count - 1].Value;
+                            candidate = candidate.Substring(0, candidate.Length - 1);
+
+                            // Validate each copied candidate while the selection grows. This makes
+                            // the loop do the parsing work before the single final right-arrow.
+                            if (string.IsNullOrWhiteSpace(candidate) || !EvaluateExpression(candidate).HasValue)
+                            {
+                                candidate = null;
+                            }
+                        }
                     }
-                    string lastMatch = matches[matches.Count - 1].Value;
-                    if (!string.IsNullOrEmpty(prevFormula) && prevFormula == lastMatch)
+
+                    if (candidate == null)
                     {
-                        finalFormula = lastMatch;
+                        // The first couple of rounds can legitimately come back empty while the
+                        // selection is still too short to reach the trailing '='. Stop as soon as
+                        // a run of consecutive rounds yields nothing usable, so a formula that is
+                        // not there never turns into an endless retry loop.
+                        consecutiveFailures++;
+                        if (consecutiveFailures >= maxConsecutiveFailures)
+                        {
+                            break;
+                        }
+                        continue;
+                    }
+
+                    consecutiveFailures = 0;
+
+                    if (string.Equals(previousFormula, candidate, StringComparison.Ordinal))
+                    {
+                        finalFormula = candidate;
                         break;
                     }
-                    else
+
+                    previousFormula = candidate;
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                // Always release injected keys before restoring the caret, including errors.
+                try
+                {
+                    if (leftKeyDown)
                     {
-                        prevFormula = matches[0].Value;
+                        SimulateKeyUp(0x25);
+                        leftKeyDown = false;
+                    }
+                    if (shiftKeyDown)
+                    {
+                        SimulateKeyUp(VK_LSHIFT);
+                        shiftKeyDown = false;
                     }
                 }
                 catch { }
-            }
-            if (!string.IsNullOrEmpty(finalFormula))
-            {
-                if (finalFormula.Length > 0)
+
+                // Collapse the accumulated selection only once, after all copies were processed.
+                if (selectionStarted)
                 {
-                    finalFormula = finalFormula.Substring(0, finalFormula.Length - 1);
+                    try
+                    {
+                        SendKeyToFocusedWindow(0x27);
+                        await Task.Delay(10);
+                    }
+                    catch { }
                 }
-                return finalFormula;
             }
-            if (!string.IsNullOrEmpty(prevFormula))
-            {
-                if (prevFormula.Length > 0)
-                {
-                    prevFormula = prevFormula.Substring(0, prevFormula.Length - 1);
-                }
-                return prevFormula;
-            }
-            return null;
+
+            return finalFormula ?? previousFormula;
         }
 
         [DllImport("user32.dll")]
@@ -486,8 +593,18 @@ namespace VPet.Plugin.MathGenius
 
         [DllImport("user32.dll")]
         private static extern void keybd_event(byte bVk, byte bScan, int dwFlags, IntPtr dwExtraInfo);
-        private void SimulateKeyDown(int vkCode) { keybd_event((byte)vkCode, 0, 0, IntPtr.Zero); }
-        private void SimulateKeyUp(int vkCode) { keybd_event((byte)vkCode, 0, 2, IntPtr.Zero); }
+        private const int KEYEVENTF_EXTENDEDKEY = 0x1;
+        private const int KEYEVENTF_KEYUP = 0x2;
+        private void SimulateKeyDown(int vkCode)
+        {
+            int flags = IsExtendedKey(vkCode) ? KEYEVENTF_EXTENDEDKEY : 0;
+            keybd_event((byte)vkCode, 0, flags, IntPtr.Zero);
+        }
+        private void SimulateKeyUp(int vkCode)
+        {
+            int flags = (IsExtendedKey(vkCode) ? KEYEVENTF_EXTENDEDKEY : 0) | KEYEVENTF_KEYUP;
+            keybd_event((byte)vkCode, 0, flags, IntPtr.Zero);
+        }
         private void SimulateKeyPress(int vkCode)
         {
             SimulateKeyDown(vkCode);

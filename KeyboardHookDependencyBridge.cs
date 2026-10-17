@@ -78,6 +78,10 @@ namespace VPet.Plugin.MathGenius
                 if (!string.Equals(t.FullName, ArgsTypeName, StringComparison.Ordinal))
                     return;
 
+                var isInjectedObj = t.GetProperty("IsInjected", BindingFlags.Public | BindingFlags.Instance)?.GetValue(e);
+                if (isInjectedObj != null && Convert.ToBoolean(isInjectedObj))
+                    return;
+
                 var vkObj = t.GetProperty("VirtualKey", BindingFlags.Public | BindingFlags.Instance)?.GetValue(e);
                 if (vkObj == null)
                     return;
