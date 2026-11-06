@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using System.Windows.Threading;
 using VPet_Simulator.Windows.Interface;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using LinePutScript;
@@ -265,6 +264,14 @@ namespace VPet.Plugin.MathGenius
         private const int VK_SHIFT = 0x10;
         private const int VK_LSHIFT = 0xA0;
         private const int VK_RSHIFT = 0xA1;
+        private const int VK_CONTROL = 0x11;
+        private const int VK_LCONTROL = 0xA2;
+        private const int VK_RCONTROL = 0xA3;
+        private const int VK_MENU = 0x12;
+        private const int VK_LMENU = 0xA4;
+        private const int VK_RMENU = 0xA5;
+        private const int VK_LWIN = 0x5B;
+        private const int VK_RWIN = 0x5C;
 
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -284,6 +291,9 @@ namespace VPet.Plugin.MathGenius
         private MathGeniusPlugin plugin;
         private int keyPressCount = 0;
         private bool hasDigitTyped = false;
+        private bool equalKeyDownWithModifier = false;
+        private volatile bool pendingEqualTrigger = false;
+        private const int equalConfirmDelayMilliseconds = 250;
 
         private void Log(string message) { }
 
@@ -343,15 +353,51 @@ namespace VPet.Plugin.MathGenius
                 if (isProcessing)
                     return;
 
-                if (vkCode == VK_EQUAL && (wMsg == WM_KEYUP || wMsg == WM_SYSKEYUP))
+                bool isKeyDownMessage = wMsg == WM_KEYDOWN || wMsg == WM_SYSKEYDOWN;
+                bool isKeyUpMessage = wMsg == WM_KEYUP || wMsg == WM_SYSKEYUP;
+
+                if (vkCode == VK_EQUAL)
                 {
-                    bool shiftDown = IsShiftDown();
-                    if (!shiftDown && hasDigitTyped)
+                    if (isKeyDownMessage)
+                    {
+                        if (pendingEqualTrigger)
+                        {
+                            // Code such as "1==x" types two '=' back to back: the second
+                            // one proves the first was not a formula terminator, so cancel
+                            // the pending trigger and keep this '=' harmless too.
+                            pendingEqualTrigger = false;
+                            hasDigitTyped = false;
+                            equalKeyDownWithModifier = true;
+                            return;
+                        }
+
+                        // Remember how '=' went down: Shift+'=' types '+', and such a
+                        // combination must stay harmless even when the modifier is released
+                        // before the '=' key itself is released.
+                        equalKeyDownWithModifier = IsAnyModifierDown();
+                        return;
+                    }
+
+                    if (!isKeyUpMessage)
+                        return;
+
+                    // Ignore every '=' that belongs to a key combination.
+                    bool pressedAsCombination = equalKeyDownWithModifier || IsAnyModifierDown();
+                    equalKeyDownWithModifier = false;
+                    if (!pressedAsCombination && hasDigitTyped)
                     {
                         hasDigitTyped = false;
-                        isProcessing = true;
+                        pendingEqualTrigger = true;
                         Task.Run(async () =>
                         {
+                            // Give the user a moment to type a second '=' (code like
+                            // "1==x" or "0==err"): that second press cancels the pending
+                            // trigger instead of hijacking the selection.
+                            await Task.Delay(equalConfirmDelayMilliseconds);
+                            if (!pendingEqualTrigger)
+                                return;
+                            pendingEqualTrigger = false;
+                            isProcessing = true;
                             try
                             {
                                 _ = dispatcher.BeginInvoke(new Action(() =>
@@ -392,23 +438,51 @@ namespace VPet.Plugin.MathGenius
                             }
                         });
                     }
+                    return;
                 }
-                else if (wMsg == WM_KEYDOWN || wMsg == WM_SYSKEYDOWN)
+
+                if (!isKeyDownMessage)
+                    return;
+
+                // Still typing after the '=' means it was not a formula terminator
+                // ("1=x", "a=1" ...): drop the pending trigger before it presses any key.
+                if (pendingEqualTrigger && (IsLetterKey(vkCode) || IsDigitKey(vkCode) || vkCode == 0x20))
                 {
-                    if (vkCode == VK_EQUAL)
-                    {
-                    }
-                    else
-                    {
-                        if ((vkCode >= 0x30 && vkCode <= 0x39) || (vkCode >= 0x60 && vkCode <= 0x69))
-                        {
-                            hasDigitTyped = true;
-                        }
-                        else
-                        {
-                            hasDigitTyped = false;
-                        }
-                    }
+                    pendingEqualTrigger = false;
+                }
+
+                // Ignore keys typed as part of a Ctrl/Alt/Win combination (Ctrl+C, Ctrl+V,
+                // Alt+Tab, Win+...). They never type a bare number, so they must neither
+                // arm nor fire formula recognition.
+                if (IsCtrlDown() || IsAltDown() || IsWinDown())
+                {
+                    hasDigitTyped = false;
+                    return;
+                }
+
+                // A bare modifier does not type anything, so it must not clear a valid
+                // arming (tapping Shift after "12+3" still allows "=" to fire).
+                if (IsModifierKey(vkCode))
+                {
+                    return;
+                }
+
+                if (vkCode >= 0x30 && vkCode <= 0x39)
+                {
+                    // A digit typed while Shift is held is a symbol, not a number:
+                    // '!' = Shift+1, '@' = Shift+2, '(' = Shift+9 ...
+                    // Typing code like "!=0" must therefore never arm the trigger.
+                    // Shift+0 is the one exception: it types ')' and can legitimately
+                    // end a formula such as (1+2)=
+                    hasDigitTyped = !IsShiftDown() || vkCode == 0x30;
+                }
+                else if (vkCode >= 0x60 && vkCode <= 0x69)
+                {
+                    hasDigitTyped = true;
+                }
+                else
+                {
+                    hasDigitTyped = false;
                 }
             }
             catch
@@ -501,23 +575,25 @@ namespace VPet.Plugin.MathGenius
 
                     string text = GetClipboardText();
                     text = text.Replace("（", "(").Replace("）", ")").Replace("＋", "+").Replace("－", "-").Replace("×", "*").Replace("÷", "/");
+                    // Input methods may produce full-width characters; normalize them too,
+                    // otherwise "12＋3＝" typed with a Chinese IME would never be recognized.
+                    text = text.Replace("＝", "=").Replace("＊", "*").Replace("／", "/").Replace("＾", "^").Replace("％", "%").Replace("．", ".");
+                    for (int fullWidthDigit = 0; fullWidthDigit < 10; fullWidthDigit++)
+                    {
+                        text = text.Replace((char)('０' + fullWidthDigit), (char)('0' + fullWidthDigit));
+                    }
 
                     string candidate = null;
                     if (text != "=")
                     {
-                        Regex regex = new Regex(@"[\d\(\)\+\-\*\/\^\%\.]+=$");
-                        var matches = regex.Matches(text);
-                        if (matches.Count > 0)
-                        {
-                            candidate = matches[matches.Count - 1].Value;
-                            candidate = candidate.Substring(0, candidate.Length - 1);
+                        candidate = ExtractTrailingFormula(text);
 
-                            // Validate each copied candidate while the selection grows. This makes
-                            // the loop do the parsing work before the single final right-arrow.
-                            if (string.IsNullOrWhiteSpace(candidate) || !EvaluateExpression(candidate).HasValue)
-                            {
-                                candidate = null;
-                            }
+                        // Validate each copied candidate while the selection grows. This makes
+                        // the loop do the parsing work before the single final right-arrow.
+                        if (candidate != null &&
+                            (string.IsNullOrWhiteSpace(candidate) || !ContainsOperator(candidate) || !EvaluateExpression(candidate).HasValue))
+                        {
+                            candidate = null;
                         }
                     }
 
@@ -589,6 +665,93 @@ namespace VPet.Plugin.MathGenius
             return ((GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0)
                 || ((GetAsyncKeyState(VK_LSHIFT) & 0x8000) != 0)
                 || ((GetAsyncKeyState(VK_RSHIFT) & 0x8000) != 0);
+        }
+
+        /// <summary>
+        /// Returns the trailing "...=" fragment when the copied text really ends a formula,
+        /// or null when the text is just code glued to an identifier ("x1=", "v2=").
+        /// </summary>
+        private static string ExtractTrailingFormula(string text)
+        {
+            if (string.IsNullOrEmpty(text) || text[text.Length - 1] != '=')
+                return null;
+
+            int start = text.Length - 1;
+            while (start > 0 && IsFormulaCharacter(text[start - 1]))
+                start--;
+
+            if (start == text.Length - 1)
+                return null;                     // nothing in front of the '='
+
+            if (start > 0)
+            {
+                char before = text[start - 1];
+                if (char.IsLetterOrDigit(before) || before == '_')
+                    return null;                 // "x1=" is code, not a formula
+            }
+
+            return text.Substring(start, text.Length - 1 - start);
+        }
+
+        private static bool IsFormulaCharacter(char c)
+        {
+            return (c >= '0' && c <= '9')
+                || c == '(' || c == ')' || c == '+' || c == '-' || c == '*' || c == '/'
+                || c == '^' || c == '%' || c == '.';
+        }
+
+        private static bool IsLetterKey(int vkCode)
+        {
+            return vkCode >= 0x41 && vkCode <= 0x5A;
+        }
+
+        private static bool IsDigitKey(int vkCode)
+        {
+            return (vkCode >= 0x30 && vkCode <= 0x39) || (vkCode >= 0x60 && vkCode <= 0x69);
+        }
+
+        private static bool ContainsOperator(string expression)
+        {
+            foreach (char c in expression)
+            {
+                if (c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '%')
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool IsModifierKey(int vkCode)
+        {
+            return vkCode == VK_SHIFT || vkCode == VK_LSHIFT || vkCode == VK_RSHIFT
+                || vkCode == VK_CONTROL || vkCode == VK_LCONTROL || vkCode == VK_RCONTROL
+                || vkCode == VK_MENU || vkCode == VK_LMENU || vkCode == VK_RMENU
+                || vkCode == VK_LWIN || vkCode == VK_RWIN;
+        }
+
+        private static bool IsKeyHeld(int vkCode)
+        {
+            return (GetAsyncKeyState(vkCode) & 0x8000) != 0;
+        }
+
+        private static bool IsCtrlDown()
+        {
+            return IsKeyHeld(VK_CONTROL) || IsKeyHeld(VK_LCONTROL) || IsKeyHeld(VK_RCONTROL);
+        }
+
+        private static bool IsAltDown()
+        {
+            return IsKeyHeld(VK_MENU) || IsKeyHeld(VK_LMENU) || IsKeyHeld(VK_RMENU);
+        }
+
+        private static bool IsWinDown()
+        {
+            return IsKeyHeld(VK_LWIN) || IsKeyHeld(VK_RWIN);
+        }
+
+        private static bool IsAnyModifierDown()
+        {
+            return IsKeyHeld(VK_SHIFT) || IsKeyHeld(VK_LSHIFT) || IsKeyHeld(VK_RSHIFT)
+                || IsCtrlDown() || IsAltDown() || IsWinDown();
         }
 
         [DllImport("user32.dll")]
